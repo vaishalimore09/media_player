@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Video Player</title>
+    <style>
+        #video-container {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            width: 100%;
+            margin: 0 auto;
+            font-family: Arial, sans-serif;
+        }
+
+        #video-wrapper {
+            flex: 0 0 70%;
+            position: relative;
+        }
+
+        #video {
+            width: 100%;
+        }
+
+        #timeline-bar {
+            position: absolute;
+            bottom: -20px;
+            left: 0;
+            width: 100%;
+            height: 10px;
+            background-color: #ddd;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+
+        #timeline-progress {
+            height: 100%;
+            background-color: #4cafaa;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .interval-marker {
+            position: absolute;
+            width: 0;
+            height: 0;
+            border-left: 6px solid transparent;
+            border-right: 6px solid transparent;
+            border-bottom: 12px solid #ff4d4d;
+            bottom: -16px;
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        .chapter-buttons {
+            flex: 0 0 30%;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-left: 20px;
+            margin-top: 30px;
+        }
+
+        .chapter-button {
+            margin-top: 20px;
+            width: 80%;
+            margin-bottom: 10px;
+            padding: 10px 20px;
+            background-color: #4cafaa;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            text-align: center;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .chapter-button:hover {
+            background-color: #01726c;
+        }
+    </style>
+</head>
+<body>
+    <div id="video-container">
+        <div id="video-wrapper">
+            <video id="video" controls>
+                <source src="{{ video_url }}" type="video/mp4">
+                Your browser does not support the video tag.
+            </video>
+            <div id="timeline-bar">
+                <div id="timeline-progress"></div>
+            </div>
+            <div class="interval-marker" id="interval-marker-1"></div>
+            <div class="interval-marker" id="interval-marker-2"></div>
+            <div class="interval-marker" id="interval-marker-3"></div>
+        </div>
+
+        <div class="chapter-buttons">
+            <button class="chapter-button" onclick="playInterval(0)">Chapter 1</button>
+            <button class="chapter-button" onclick="playInterval(1)">Chapter 2</button>
+            <button class="chapter-button" onclick="playInterval(2)">Chapter 3</button>
+            <button class="chapter-button" onclick="playVideo()">Play Full Video</button>
+        </div>
+    </div>
+
+    <script>
+        var video = document.getElementById('video');
+        var timelineBar = document.getElementById('timeline-progress');
+        var intervals = [
+            { start: 10, end: 15 },
+            { start: 30, end: 50 },
+            { start: 100, end: 115 }
+        ];
+
+        video.addEventListener('loadedmetadata', function () {
+            var duration = video.duration;
+            video.play();
+            video.addEventListener('timeupdate', function () {
+                var currentTime = video.currentTime;
+                var percentage = (currentTime / duration) * 100;
+                timelineBar.style.width = percentage + '%';
+                for (var i = 0; i < intervals.length; i++) {
+                    var marker = document.getElementById('interval-marker-' + (i + 1));
+                    var intervalStartPercentage = (intervals[i].start / duration) * 100;
+                    marker.style.left = intervalStartPercentage + '%';
+                }
+            });
+        });
+
+        function playVideo() {
+            var intervalMarkers = document.querySelectorAll('.interval-marker');
+            intervalMarkers.forEach(function (marker) {
+                marker.style.display = 'none';
+            });
+            video.currentTime = 0;
+            video.play();
+        }
+
+        function playInterval(intervalIndex) {
+            if (intervalIndex >= 0 && intervalIndex < intervals.length) {
+                var start = intervals[intervalIndex].start;
+                video.currentTime = start;
+                video.play();
+            }
+            var intervalMarkers = document.querySelectorAll('.interval-marker');
+            intervalMarkers.forEach(function (marker) {
+                marker.style.display = 'block';
+            });
+        }
+    </script>
+</body>
+</html>
