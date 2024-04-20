@@ -3,8 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Video Player</title>
+    <title>Media Player</title>
+    <link rel="icon" href="data:,">
+
     <style>
+        #chapter-buttons-container {
+            flex: 0 0 30%;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            margin-left: 20px;
+            margin-top: 30px;
+        }
+
+        .chapter-button {
+            margin-top: 10px;
+            padding: 8px 16px;
+            background-color: #4cafaa;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+
+        #timeline-progress {
+            height: 100%;
+            background-color: #4cafaa;
+            border-radius: 5px;
+            transition: width 0.3s ease;
+        }
+
+        .chapter-button:hover {
+            background-color: #01726c;
+        }
+
         #video-container {
             display: flex;
             justify-content: space-between;
@@ -41,45 +74,46 @@
             transition: width 0.3s ease;
         }
 
-        .interval-marker {
+        .chapter-marker {
             position: absolute;
-            width: 0;
-            height: 0;
-            border-left: 6px solid transparent;
-            border-right: 6px solid transparent;
-            border-bottom: 12px solid #ff4d4d;
-            bottom: -16px;
-            left: 50%;
-            transform: translateX(-50%);
+            width: 2px;
+            height: 100%;
+            background-color: red;
+            pointer-events: none;
         }
 
-        .chapter-buttons {
-            flex: 0 0 30%;
-            display: flex;
-            flex-direction: column;
-            align-items: flex-start;
-            margin-left: 20px;
-            margin-top: 30px;
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            background-color: rgba(0, 0, 0, 0.4);
         }
 
-        .chapter-button {
-            margin-top: 20px;
+        .modal-content {
+            background-color: #fefefe;
+            margin: 15% auto;
+            padding: 20px;
+            border: 1px solid #888;
             width: 80%;
-            margin-bottom: 10px;
-            padding: 10px 20px;
-            background-color: #4cafaa;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-            text-align: center;
-            text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
-        .chapter-button:hover {
-            background-color: #01726c;
+        .close {
+            color: #aaa;
+            float: right;
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .close:hover,
+        .close:focus {
+            color: black;
+            text-decoration: none;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -87,69 +121,164 @@
     <div id="video-container">
         <div id="video-wrapper">
             <video id="video" controls>
+                console.log("1. {{ video_url }}")
                 <source src="{{ video_url }}" type="video/mp4">
                 Your browser does not support the video tag.
             </video>
+
             <div id="timeline-bar">
                 <div id="timeline-progress"></div>
             </div>
-            <div class="interval-marker" id="interval-marker-1"></div>
-            <div class="interval-marker" id="interval-marker-2"></div>
-            <div class="interval-marker" id="interval-marker-3"></div>
-        </div>
 
-        <div class="chapter-buttons">
-            <button class="chapter-button" onclick="playInterval(0)">Chapter 1</button>
-            <button class="chapter-button" onclick="playInterval(1)">Chapter 2</button>
-            <button class="chapter-button" onclick="playInterval(2)">Chapter 3</button>
-            <button class="chapter-button" onclick="playVideo()">Play Full Video</button>
+            <input type="text" name="searchQuery" id="sip">
+            <button id="sbtn">Search</button>
+    
+            <div id="searchResult"></div>
+            
+        </div>
+        
+        <div id="chapter-buttons-container">
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script>
-        var video = document.getElementById('video');
-        var timelineBar = document.getElementById('timeline-progress');
-        var intervals = [
-            { start: 10, end: 15 },
-            { start: 30, end: 50 },
-            { start: 100, end: 115 }
-        ];
+        var chapters = {{ chapters | tojson | safe }};
+        console.log(chapters);
 
-        video.addEventListener('loadedmetadata', function () {
-            var duration = video.duration;
-            video.play();
-            video.addEventListener('timeupdate', function () {
+        var video = document.getElementById('video');
+        
+        var timelineProgress = document.getElementById('timeline-progress');
+        var chapterButtonsContainer = document.getElementById('chapter-buttons-container');
+        var timelineBar = document.getElementById('timeline-progress');
+
+        
+
+
+        function timeToSeconds(timeString) {
+            
+            if (typeof timeString !== 'string') {
+                return 0;
+            }
+        
+            var parts = timeString.split(/[:.]/);
+            var hours = 0;
+            var minutes = 0;
+            var seconds = 0;
+
+            if (parts.length === 1) {
+                seconds = parseInt(parts[0], 10) || 0;
+            } else if (parts.length === 2) {
+                minutes = parseInt(parts[0], 10) || 0;
+                seconds = parseInt(parts[1], 10) || 0;
+            } else if (parts.length === 3) {
+                hours = parseInt(parts[0], 10) || 0;
+                minutes = parseInt(parts[1], 10) || 0;
+                seconds = parseInt(parts[2], 10) || 0;
+            }
+
+            return hours * 3600 + minutes * 60 + seconds;
+        }
+
+        function playChapter(startTime, endTime) {
+            
+            var startSeconds = timeToSeconds(startTime);
+            var endSeconds = timeToSeconds(endTime);        
+
+            if (!isNaN(startSeconds) && !isNaN(endSeconds)) {
+                console.log("2." + video.src);
+                video.currentTime = startSeconds;
+                video.play();
+
+                var durationMillis = (endSeconds - startSeconds) * 1000;
+                setTimeout(function() {
+                    video.pause();
+                }, durationMillis);
+            } else {
+                var chapterButtons = document.querySelectorAll('.chapter-button');
+                chapterButtons.forEach(function(button) {
+                    button.style.color = 'red';
+                });
+            }
+        }
+
+        function createChapterMarkers() {
+            chapters.forEach(function(chapter) {
+                var startSeconds = timeToSeconds(chapter.offset_start_time);
+                var markerPosition = (startSeconds / video.duration) * 100;
+
+                var marker = document.createElement('div');
+                marker.className = 'chapter-marker';
+                marker.style.left = markerPosition + '%';
+                console.log('Start Seconds:', startSeconds);
+                console.log('position:', video.duration);
+                timelineBar.appendChild(marker);
+            });
+        }
+        
+        video.addEventListener('loadedmetadata', function() {
+
+            createChapterMarkers(); 
+
+            video.addEventListener('timeupdate', function() {
                 var currentTime = video.currentTime;
+                var duration = video.duration;
                 var percentage = (currentTime / duration) * 100;
-                timelineBar.style.width = percentage + '%';
-                for (var i = 0; i < intervals.length; i++) {
-                    var marker = document.getElementById('interval-marker-' + (i + 1));
-                    var intervalStartPercentage = (intervals[i].start / duration) * 100;
-                    marker.style.left = intervalStartPercentage + '%';
-                }
+                timelineProgress.style.width = percentage + '%';
+            });
+
+            chapters.forEach(function(chapter, index) {
+                var button = document.createElement('button');
+                button.textContent = chapter.chapter_name;
+                button.className = 'chapter-button';
+                button.onclick = function() {
+                    playChapter(chapter.offset_start_time, chapter.offset_end_time);
+                };
+                chapterButtonsContainer.appendChild(button);
+    
+                // Create chapter markers
+                var marker = document.createElement('div');
+                marker.className = 'chapter-marker';
+                var startSeconds = timeToSeconds(chapter.offset_start_time);
+                var markerPosition = (startSeconds / video.duration) * 100;
+                marker.style.left = markerPosition + '%';
+                timelineBar.appendChild(marker);
             });
         });
 
-        function playVideo() {
-            var intervalMarkers = document.querySelectorAll('.interval-marker');
-            intervalMarkers.forEach(function (marker) {
-                marker.style.display = 'none';
-            });
-            video.currentTime = 0;
-            video.play();
-        }
+        $(document).ready(function() {
+            $('#sbtn').click(function() {
+                var searchQuery = $('#sip').val();
 
-        function playInterval(intervalIndex) {
-            if (intervalIndex >= 0 && intervalIndex < intervals.length) {
-                var start = intervals[intervalIndex].start;
-                video.currentTime = start;
-                video.play();
-            }
-            var intervalMarkers = document.querySelectorAll('.interval-marker');
-            intervalMarkers.forEach(function (marker) {
-                marker.style.display = 'block';
+                $.ajax({
+                    url: '/search',
+                    type: 'GET',
+                    data: { searchQuery: searchQuery },
+                    success: function(response) {
+                        console.log(response)
+                        console.log(response.answer)
+                        if (response && response.answer !== null && response.offsetStartTime !== null && response.offsetEndTime !== null) {
+                            // Construct HTML content with response data
+                            var resultHTML = `
+                                <p><strong>Answer:</strong> ${response.answer}</p>
+                                <p><strong>Start Time:</strong> ${response.offsetStartTime}</p>
+                                <p><strong>End Time:</strong> ${response.offsetEndTime}</p>
+                            `;
+                            // Display the result HTML in the designated element
+                            $('#searchResult').html(`<p><strong>Answer:</strong> ${response.answer}</p>`);
+                        } else {
+                            // Display error message if response is invalid or missing fields
+                            $('#searchResult').text('Invalid response format');
+                        }
+                    },
+                    error: function(error) {
+                        // Display error message if AJAX request fails
+                        $('#searchResult').text('Error: ' + error.responseText);
+                    }
+        
+                });
             });
-        }
+        });
     </script>
 </body>
 </html>
