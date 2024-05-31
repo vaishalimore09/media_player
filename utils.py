@@ -189,23 +189,14 @@ def generate_highlights(transcript):
     )
     
     try:
-        # prompt = [
-        #     {"role": "system", "content": "Task: Generate a highlight video from the provided transcript. Highlights should constitute approximately 25% to 30% of the total video/transcript, capturing all important details such as the discussion topic, key points, and final remarks (e.g., issue resolution). Each highlight should be concise. For videos less than 5 minutes, limit highlights to 3-4; include  most important highlights only"},
-        #     {"role": "system", "content": "Response Format: Return a JSON object named \"highlights\" containing content in highlight, offsetstarttime of highlight and offsetendtime:: content,offsetstarttime,offsetendtime} (note: response should contain extra information just return json)"},
-        #     {"role": "system", "content": "- Content of the highlight"},
-        #     {"role": "system", "content": "- offsetstarttime of the highlight"},
-        #     {"role": "system", "content": "- offsetendtime of the highlight"},
-        #     {"role": "system", "content": transcript}
-        # ]
-        
         prompt = [
-    {"role": "system", "content": "Task: Generate a highlight video from the provided transcript. Highlights should constitute approximately 25% to 30% of the total video/transcript, capturing all important details such as the discussion topic, key points, critical emotions (e.g., anger, high pitch), and final remarks (e.g., on issue resolution). Each highlight should be concise and cover: the introduction of the problem, key discussion points, and the final review status (e.g., whether the issue was resolved or will need further attention). For videos less than 5 minutes, limit highlights to 3-4 of the most important parts only."},
-    {"role": "system", "content": "Response Format: Return a JSON object named \"highlights\" containing an array of highlights. Each highlight should include \"content\" for the text of the highlight, \"offsetstarttime\" for the start time of the highlight, and \"offsetendtime\" for the end time of the highlight. The format should be: {\"content\": \"highlight content\", \"offsetstarttime\": \"start time\", \"offsetendtime\": \"end time\"}."},
-    {"role": "system", "content": "- content: The text of the highlight."},
-    {"role": "system", "content": "- offsetstarttime: The start time of the highlight."},
-    {"role": "system", "content": "- offsetendtime: The end time of the highlight."},
-    {"role": "system", "content": transcript}
-]
+            {"role": "system", "content": "Task: Generate a highlight video from the provided transcript. Highlights should constitute approximately 25% to 30% of the total video/transcript, capturing all important details such as the discussion topic, key points, critical emotions (e.g., anger, high pitch), and final remarks (e.g., on issue resolution). Each highlight should be concise and cover: the introduction of the problem, key discussion points, and the final review status (e.g., whether the issue was resolved or will need further attention). For videos less than 5 minutes, limit highlights to 3-4 of the most important parts only."},
+            {"role": "system", "content": "Response Format: Return a JSON object named \"highlights\" containing an array of highlights. Each highlight should include \"content\" for the text of the highlight, \"offsetstarttime\" for the start time of the highlight, and \"offsetendtime\" for the end time of the highlight. The format should be: {\"content\": \"highlight content\", \"offsetstarttime\": \"start time\", \"offsetendtime\": \"end time\"}."},
+            {"role": "system", "content": "- content: The text of the highlight."},
+            {"role": "system", "content": "- offsetstarttime: The start time of the highlight."},
+            {"role": "system", "content": "- offsetendtime: The end time of the highlight."},
+            {"role": "system", "content": transcript}
+        ]
 
 
         completion = client.chat.completions.create(
