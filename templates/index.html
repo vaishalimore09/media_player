@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Media Player</title>
+    <link rel="icon" href="data:," />
+    <style>
+      body {
+        font-family: "Roboto", sans-serif;
+        font-size: 16px;
+        line-height: 1.5;
+        margin: 0;
+        padding: 0;
+        display: flex;
+      }
+      #video-container {
+        flex: 0 0 60%;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 20px;
+      }
+      #video-wrapper {
+        width: 100%;
+        position: relative;
+        margin-bottom: 20px;
+      }
+      #video {
+        width: 100%;
+      }
+      #timeline-bar {
+        position: absolute;
+        bottom: -20px;
+        left: 0;
+        width: 100%;
+        height: 10px;
+        background-color: #ddd;
+        border-radius: 5px;
+        overflow: hidden;
+      }
+      #timeline-progress {
+        height: 100%;
+        background-color: #4cafaa;
+        border-radius: 5px;
+        transition: width 0.3s ease;
+      }
+
+      .timeline-marker {
+        position: absolute;
+        bottom: 0;
+        width: 4px;
+        height: 10px;
+        background-color: red;
+        border-radius: 2px;
+      }
+
+      #controls-container {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        width: 400px;
+        height: 400px;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: center;
+        padding: 30px;
+        box-sizing: border-box;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        z-index: 999;
+      }
+      #search-container {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        margin-bottom: 20px;
+      }
+      input[type="text"],
+      button {
+        padding: 10px 16px;
+        font-size: 16px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+        width: 100%;
+        box-sizing: border-box;
+        margin-bottom: 10px;
+      }
+      input[type="text"] {
+        width: 100%;
+      }
+      button {
+        background-color: #4cafaa;
+        color: black;
+      }
+      button:hover {
+        background-color: #01726c;
+      }
+      #searchResult {
+        width: 100%;
+        max-height: 150px;
+        padding: 10px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        box-sizing: border-box;
+        overflow-y: auto;
+      }
+      #chapter-buttons-container {
+        flex: 0 0 30%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: flex-start;
+        padding: 20px;
+        box-sizing: border-box;
+        background-color: #f9f9f9;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        margin: 20px;
+      }
+      .chapter-button {
+        width: 100%;
+        padding: 10px;
+        margin-bottom: 10px;
+        background-color: #4cafaa;
+        color: black;
+        text-align: center;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+      .chapter-button:hover {
+        background-color: #01726c;
+      }
+      #msrh {
+        position: fixed;
+        top: 20px;
+        right: 6%;
+        width: 5%;
+        color: white;
+        font-size: 16px;
+        border: none;
+        cursor: pointer;
+        border-radius: 50%;
+      }
+      #msrh img {
+        width: 90%;
+        height: auto;
+      }
+      .time-text {
+        position: absolute;
+        top: 100%;
+        transform: translateX(-50%);
+        background-color: rgba(255, 255, 255, 0.9);
+        padding: 5px;
+        border-radius: 5px;
+        pointer-events: none;
+        max-width: 200px;
+        word-wrap: break-word;
+        z-index: 1000;
+        box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+      }
+    </style>
+  </head>
+  <body>
+    <div id="video-container">
+      <div id="video-wrapper">
+        <video id="video" controls>
+          <source src="{{ video_url }}" type="video/mp4" />
+        </video>
+        <div id="timeline-bar">
+          <div id="timeline-progress"></div>
+        </div>
+      </div>
+    </div>
+
+    <button id="msrh" style="width: 5%" onclick="openSearch()">
+      <img src="videos/image.png" alt="Search" border="0" />
+    </button>
+
+    <div id="chapter-buttons-container">
+      <h1>Interaction Chapters</h1>
+    </div>
+
+    <button id="hlit" onclick="toggleHighlights()">Toggle Highlights</button>
+    <div id="error-message">Error: Highlights mode is on</div>
+
+    <div class="form-popup" id="controls-container">
+      <div id="search-container">
+        <input
+          type="text"
+          name="searchQuery"
+          id="sip"
+          placeholder="Enter search query"
+        />
+        <button id="sbtn">Search</button>
+        <button id="clearBtn">Clear</button>
+        <button id="closeControlsBtn" onclick="closeSearch()">Close</button>
+      </div>
+      <div id="searchResult"></div>
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script id="transcript-data" type="application/json">{{ transcript | tojson | safe }}</script>
+    <script>
+      var chapters = {{ chapters | tojson | safe }};
+      var insights = {{ insights | tojson | safe }};
+      var highlights = {{ highlights | tojson | safe}}
+      var transcript = JSON.parse(document.getElementById('transcript-data').textContent);
+      console.log(chapters);
+      console.log(insights);
+      console.log(highlights);
+      console.log(transcript)
+
+      var video = document.getElementById('video');
+
+      var timelineProgress = document.getElementById('timeline-progress');
+      var chapterButtonsContainer = document.getElementById('chapter-buttons-container');
+      var timelineBar = document.getElementById('timeline-bar');
+      var isHighlightsMode = false;
+
+      function showErrorMessage() {
+        var errorMessage = document.getElementById('error-message');
+        errorMessage.style.display = 'block';
+        setTimeout(function() {
+            errorMessage.style.display = 'none';
+        }, 2000);
+    }
+
+      function openSearch() {
+        document.getElementById("controls-container").style.display = "block";
+      }
+
+      function closeSearch() {
+        document.getElementById("controls-container").style.display = "none";
+      }
+
+      function timeToSeconds(timeString) {
+        if (typeof timeString !== 'string') {
+          return 0;
+        }
+
+        var parts = timeString.split(/[:.]/);
+        var hours = 0;
+        var minutes = 0;
+        var seconds = 0;
+
+        if (parts.length === 1) {
+          seconds = parseInt(parts[0], 10) || 0;
+        } else if (parts.length === 2) {
+          minutes = parseInt(parts[0], 10) || 0;
+          seconds = parseInt(parts[1], 10) || 0;
+        } else if (parts.length === 3) {
+          hours = parseInt(parts[0], 10) || 0;
+          minutes = parseInt(parts[1], 10) || 0;
+          seconds = parseInt(parts[2], 10) || 0;
+        }
+
+        return hours * 3600 + minutes * 60 + seconds;
+      }
+
+      function playChapter(startTime, endTime) {
+        
+        var startSeconds = timeToSeconds(startTime);
+        var endSeconds = timeToSeconds(endTime);
+
+        if (isHighlightsMode) {
+            showErrorMessage();
+            return;
+        }
+
+        if (!isNaN(startSeconds) && !isNaN(endSeconds)) {
+          video.currentTime = startSeconds;
+          video.play();
+
+          var durationMillis = (endSeconds - startSeconds) * 1000;
+          setTimeout(function () {
+            video.pause();
+          }, durationMillis);
+        } else {
+          var chapterButtons = document.querySelectorAll('.chapter-button');
+          chapterButtons.forEach(function (button) {
+            button.style.color = 'red';
+          });
+        }
+      }
+
+      function addMarkers(insights) {
+        var timelineBar = document.getElementById('timeline-bar');
+
+        insights.forEach(function(insight) {
+          var marker = document.createElement('div');
+          marker.className = 'timeline-marker';
+
+          var startSeconds = timeToSeconds(insight.offsetStartTime);
+          var percentage = (startSeconds / video.duration) * 100;
+
+          marker.style.left = percentage + '%';
+
+          timelineBar.appendChild(marker);
+        });
+      }
+
+      video.addEventListener('loadedmetadata', function () {
+        video.currentTime = 0;
+
+        video.addEventListener('timeupdate', function () {
+          var currentTime = video.currentTime;
+          var duration = video.duration;
+          var percentage = (currentTime / duration) * 100;
+          timelineProgress.style.width = percentage + '%';
+        });
+
+        chapters.forEach(function (chapter, index) {
+          var button = document.createElement('button');
+          button.textContent = chapter.name;
+          button.className = 'chapter-button';
+          button.onclick = function () {
+            playChapter(chapter.offsetStartTime, chapter.offsetEndTime);
+          };
+          chapterButtonsContainer.appendChild(button);
+        });
+
+        addMarkers(insights);
+      });
+
+      function playHighlight(startTime, endTime, callback) {
+        var startSeconds = timeToSeconds(startTime);
+        var endSeconds = timeToSeconds(endTime);
+
+        if (!isNaN(startSeconds) && !isNaN(endSeconds)) {
+            video.currentTime = startSeconds;
+            console.log(video.currentTime);
+            video.play();
+            var durationMillis = (endSeconds - startSeconds) * 1000;
+            setTimeout(function() {
+                video.pause();
+                if (typeof callback === 'function') {
+                    callback();
+                }
+            }, durationMillis);
+        } else {
+            var chapterButtons = document.querySelectorAll('.chapter-button');
+            chapterButtons.forEach(function(button) {
+                button.style.color = 'red';
+            });
+        }
+    }
+
+    function playHighlights() {
+        video.pause();
+        function playHighlightsSequentially(highlights, index) {
+          if (index < highlights.length) {
+              var highlight = highlights[index];
+              playHighlight(highlight.offsetstarttime, highlight.offsetendtime, function() {
+                  playHighlightsSequentially(highlights, index + 1);
+              });
+          }
+      }
+      playHighlightsSequentially(highlights, 0);
+    }
+
+    function toggleHighlights() {
+        isHighlightsMode = !isHighlightsMode;
+        if (isHighlightsMode) {
+            playHighlights();
+        } else {
+            video.pause();
+            video.currentTime = 0;
+        }
+    }
+
+      $(document).ready(function () {
+        $('#sbtn').click(function () {
+
+            if (isHighlightsMode) {
+                showErrorMessage();
+                return;
+            }
+          var searchQuery = $('#sip').val();
+          console.log(searchQuery)
+
+          $.ajax({
+            url: '/search',
+            type: 'GET',
+            data: { searchQuery: searchQuery, transcript:transcript },
+            success: function (response) {
+              console.log(response);
+              console.log(response.answer)
+              if (response && response.answer !== null && response.offsetStartTime !== null && response.offsetEndTime !== null) {
+                var resultHTML = `<p><strong>Answer:</strong> ${response.answer}</p>`;
+                $('#searchResult').html(resultHTML);
+              } else {
+                $('#searchResult').text('Invalid response format');
+              }
+            },
+            error: function (error) {
+              $('#searchResult').text('Error: ' + error.responseText);
+            }
+          });
+        });
+
+        $('#clearBtn').click(function () {
+          $('#sip').val('');
+          $('#searchResult').empty();
+        });
+      });
+
+      function updateTimeText(event) {
+        var timelineBarRect = timelineBar.getBoundingClientRect();
+        var offsetX = event.clientX - timelineBarRect.left;
+        var percentage = offsetX / timelineBarRect.width;
+        var currentTime = video.duration * percentage;
+
+        var hours = Math.floor(currentTime / 3600);
+        var minutes = Math.floor((currentTime % 3600) / 60);
+        var seconds = Math.floor(currentTime % 60);
+        var formattedTime = hours.toString().padStart(2, '0') + ':' +
+          minutes.toString().padStart(2, '0') + ':' +
+          seconds.toString().padStart(2, '0');
+
+        var insight = 'No insights at this point';
+        insights.forEach(function (insightItem) {
+          var startSeconds = timeToSeconds(insightItem.offsetStartTime);
+          var endSeconds = timeToSeconds(insightItem.offsetEndTime);
+          if (currentTime >= startSeconds && currentTime <= endSeconds) {
+            insight = insightItem.insight;
+          }
+        });
+
+
+  
+        var timeText = document.querySelector('.time-text');
+        if (!timeText) {
+          timeText = document.createElement('div');
+          timeText.className = 'time-text';
+          timeText.style.position = 'absolute';
+          timeText.style.top = '100%';
+          timeText.style.transform = 'translateX(-50%)';
+          timeText.style.backgroundColor = 'rgba(255, 255, 255, 0.7)';
+          timeText.style.padding = '5px';
+          timeText.style.borderRadius = '5px';
+          timeText.style.pointerEvents = 'none';
+          document.getElementById('video-wrapper').appendChild(timeText);
+        }
+
+        timeText.innerHTML = 'Insights: ' + insight + '<br>' + 'Timestamp: ' + formattedTime;
+        timeText.style.left = percentage * 100 + '%';
+      }
+
+      timelineBar.addEventListener('mousemove', updateTimeText);
+      timelineBar.addEventListener('mouseleave', function () {
+        var timeText = document.querySelector('.time-text');
+        if (timeText) {
+          timeText.remove();
+        }
+      });
+
+    </script>
+  </body>
+</html>
