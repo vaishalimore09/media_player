@@ -100,41 +100,28 @@ def search_api(message, transcript):
             presence_penalty=0,
             stop=None
         )
-        # Extract chapters from completion response
+        
         if completion.choices and len(completion.choices) > 0:
             print(completion.choices,111)
             first_choice = completion.choices[0]
             print(first_choice,222)
             if first_choice.message and hasattr(first_choice.message, 'content'):
                 message_content = first_choice.message.content
+            
                 if message_content:
                         try:
                             answer = None
-                            offset_start_time = None
-                            offset_end_time = None
                             message_content_lower = message_content.lower()
                             index1 = message_content_lower.find("answer")
                             print(message_content_lower,index1)
-                            index2 = message_content_lower.find("offsetstarttime")
-                            index3 = message_content_lower.find("offsetendtime")
                             if index1 != -1:
-                                start_index = index1 + len("answer") + 1  
+                                start_index = index1 + len("answer") + 1  # Move past the ":"
                                 end_index = message_content.find("\n", start_index)
                                 answer = message_content[start_index:end_index].strip()
-                            if index2 != -1:
-                                start_index = index2 + len("offsetstarttime") + 1
-                                end_index = message_content.find("\n", start_index)
-                                offset_start_time = message_content[start_index:end_index].strip()
-                            if index3 != -1:
-                                start_index = index3 + len("offsetendtime") + 1 
-                                offset_end_time = message_content[start_index:].strip()
                             json_data = {
                                 'answer': answer,
-                                'offsetStartTime': offset_start_time,
-                                'offsetEndTime': offset_end_time
                             }
                             return json_data
-
                         except Exception as e:
                             print("Error extracting JSON data:", e)
                             return {}
@@ -210,6 +197,7 @@ def generate_insights_from_transcript(transcript):
     prompt = [
         {"role": "system", "content": "You are an assistant that provides detailed insights from conversations."},
         {"role": "user", "content": "Identify key themes, main points, and notable quotes. Summarize context and implications for a comprehensive understanding of the conversation."},
+        {"role": "system", "content": "Identify common contact center industry insights from the given transcripts. These insights include, but are not limited to: 'did the agent greet the customer', 'did the agent ascertain the identity of the customer', 'was the agent polite and empathetic towards the customer', 'was demographic information such as name, location, or contact details verified', 'did the agent resolve the customer's issue', 'was the customer satisfied with the resolution', 'did the agent apologize if there was any inconvenience', 'did the agent follow up or confirm resolution'."},
         {"role": "user", "content": "Provide the insights along with start and end times in JSON format: {'insights': [{'insight': '...', 'offsetStartTime': '...', 'offsetEndTime': '...'}]}."},
         {"role": "user", "content": transcript}
     ]
